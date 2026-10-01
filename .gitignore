@@ -1,0 +1,35 @@
+# Secrets / local environment
+.env
+.env.*
+!.env.example
+*.pem
+*.pfx
+*.p12
+*.key
+
+# Supabase local/temp
+supabase/.temp/
+.supabase/
+
+# Node/build artifacts
+node_modules/
+dist/
+build/
+
+# Logs / temp
+*.log
+*.tmp
+*.bak
+~*
+
+# Windows/macOS
+Thumbs.db
+.DS_Store
+
+# Editors
+.vscode/
+.idea/
+
+# Python cache
+__pycache__/
+*.pyc

@@ -1,0 +1,14 @@
+# Keep repository text files deterministic across Windows/Linux
+*.sql   text eol=lf
+*.md    text eol=lf
+*.json  text eol=lf
+*.jsonl text eol=lf
+*.py    text eol=lf
+*.txt   text eol=lf
+
+# Binary source artifacts
+*.xlsx  binary
+
+# Existing governed DB migrations are immutable historical artifacts.
+# Preserve their exact bytes; never normalize line endings.
+supabase/migrations/*.sql -text

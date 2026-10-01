@@ -1,0 +1,121 @@
+{
+  "artifact_sha256": "3c7e551109ab814712c3b7bbbbbda4d41b457327452e4eee7746e698283fdc46",
+  "configuration_digest": "69a7db341de997ab7649546085c820884eb40ce734c750de80a5afd713f2bbd0",
+  "constraint_validation": "PASS",
+  "execution_fingerprint": "0648e574d281ad3658aba5dc846dfd09d34aefc86a1ff8384848d9bd0f2281bf",
+  "lifecycle_event_generated": false,
+  "reconciliation": {
+    "authoritative_sheet": {
+      "Cato Status Mapping": {
+        "accepted": 9,
+        "candidates": 9,
+        "errors": 0,
+        "quarantined": 0,
+        "warnings": 0
+      },
+      "S2T MedicationRequestCato": {
+        "accepted": 237,
+        "candidates": 238,
+        "errors": 1,
+        "quarantined": 1,
+        "warnings": 4
+      },
+      "הנחיות נוספות מעודכן": {
+        "accepted": 46,
+        "candidates": 46,
+        "errors": 0,
+        "quarantined": 0,
+        "warnings": 1
+      }
+    },
+    "decision_status": {
+      "DO NOT MAP": {
+        "accepted": 168,
+        "candidates": 169,
+        "errors": 1,
+        "quarantined": 1,
+        "warnings": 5
+      },
+      "FINAL": {
+        "accepted": 122,
+        "candidates": 122,
+        "errors": 0,
+        "quarantined": 0,
+        "warnings": 0
+      },
+      "OPEN": {
+        "accepted": 1,
+        "candidates": 1,
+        "errors": 0,
+        "quarantined": 0,
+        "warnings": 0
+      },
+      "WIP": {
+        "accepted": 1,
+        "candidates": 1,
+        "errors": 0,
+        "quarantined": 0,
+        "warnings": 0
+      }
+    },
+    "disposition": {
+      "ACCEPTED": 292,
+      "QUARANTINED": 1
+    },
+    "mapping_kind": {
+      "ELEMENT_MAPPING": {
+        "accepted": 237,
+        "candidates": 238,
+        "errors": 1,
+        "quarantined": 1,
+        "warnings": 4
+      },
+      "GOVERNANCE_GUIDANCE": {
+        "accepted": 46,
+        "candidates": 46,
+        "errors": 0,
+        "quarantined": 0,
+        "warnings": 1
+      },
+      "STATUS_MAPPING_RULE": {
+        "accepted": 9,
+        "candidates": 9,
+        "errors": 0,
+        "quarantined": 0,
+        "warnings": 0
+      }
+    },
+    "overall": {
+      "accepted": 292,
+      "candidates": 293,
+      "quarantined": 1
+    },
+    "severity": {
+      "ERROR": 1,
+      "WARNING": 5
+    }
+  },
+  "record_counts": {
+    "artifact": 1,
+    "artifact_location": 1,
+    "artifact_sheet_manifest": 7,
+    "baseline_artifact": 1,
+    "baseline_series": 1,
+    "baseline_version": 1,
+    "element_mapping": 237,
+    "governance_guidance": 46,
+    "import_candidate_row": 293,
+    "import_run": 1,
+    "import_run_metric": 62,
+    "logical_mapping_identity": 292,
+    "mapping_record": 292,
+    "quarantine_case": 1,
+    "quarantine_event": 1,
+    "status_mapping_rule": 9,
+    "validation_finding": 6,
+    "validation_finding_row": 6,
+    "validation_run": 1
+  },
+  "release_gate_generated": false,
+  "schema": "bl001-dry-run-payload-v1"
+}
