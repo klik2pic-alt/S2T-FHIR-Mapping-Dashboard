@@ -1,9 +1,11 @@
 -- =====================================================================
--- 020_mapping_identity_CANDIDATE.sql — Revision 3 (CANDIDATE for local migration 020).
+-- 020_mapping_identity.sql — Revision 3.
 -- Source: approved design 015b Revision 4 + repo-wide Codex review (Revision 2 items + final Codex integrity fixes).
--- NOT YET EXECUTED ANYWHERE.
+-- PROVENANCE: This migration contract is deployed in S2T-FHIR-DDL-Test.
+-- The deployment was manual/unhistorical and is not registered in Supabase migration history.
+-- Local-vs-deployed contract parity has been verified; this file is part of the authoritative TEST baseline.
 --
--- Existing local migrations 001–019 are immutable and hash-protected: DO NOT EDIT THEM.
+-- Local migrations 001–021 are the authoritative, hash-protected TEST baseline: DO NOT EDIT semantic SQL.
 --
 -- EXECUTION EXPECTATIONS
 --   * Supabase-only. Requires roles s2t_fhir_owner, anon, authenticated (checked below).

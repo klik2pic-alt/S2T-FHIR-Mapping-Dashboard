@@ -1,8 +1,9 @@
 -- =====================================================================
--- 016_governance_phase1_DRAFT.sql — REVISION 7
--- STATUS: DRAFT FOR PRODUCT-OWNER REVIEW — DO NOT EXECUTE.
+-- 021_governance_phase1.sql — REVISION 7
 -- Target: external governed database (S2T-FHIR-DDL-Test), NOT Lovable Cloud.
--- Stored outside supabase/migrations/ so no tooling can apply it.
+-- PROVENANCE: This migration contract is deployed in S2T-FHIR-DDL-Test.
+-- The deployment was manual/unhistorical and is not registered in Supabase migration history.
+-- Local-vs-deployed contract parity has been verified; this file is part of the authoritative TEST baseline.
 --
 -- Gate-2 dependencies are resolved and verified:
 --   DEP-AUTH  = s2t_fhir_api._require_authenticated_review_principal()
