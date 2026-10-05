@@ -22,6 +22,23 @@ These migrations implement the approved 34-table MVP schema. They do not seed BL
 
 Do not reorder or selectively skip migrations. The governance/baseline circular reference is resolved deliberately by adding the governance-item baseline FK in migration 004 after both tables exist.
 
+## Migration 022 acceptance
+
+Migration `022_candidate_baseline_lifecycle_foundation.sql` is **ACCEPTED** in `S2T-FHIR-DDL-Test` as of 2026-10-05.
+
+- Phase A: 15/15 preflight checks passed.
+- Phase B: deployment completed successfully.
+- Phase C: 11/11 post-deployment checks passed; fingerprints 101-109 matched Phase A, with no definition, privilege, API, or schema drift.
+- Phase D: 24 runtime tests passed, zero failed, and T25-T26 were `NOT RUN / FIXTURE REQUIRED` for legacy historical paths.
+- Runtime BEFORE/AFTER ROLLBACK fingerprints matched, and no synthetic test mutations persisted.
+
+Final approved SHA-256 values:
+
+- `022_candidate_baseline_lifecycle_foundation.sql`: `E04E072C6540D92552BD467CDA738173CD3A4AE67D8165E850989DF1AB8937E5`
+- `scripts/022_preflight_readonly.sql`: `D24A085711B300091E8B321055C55D7ACE9DE903108A1040034EB9862B38726A`
+- `scripts/022_postdeploy_verification.sql`: `1A4AEE1C6ECCCF28B87FA61DF2834D2641E3B873945BE5DF7F222B76A3F64AB1`
+- `scripts/022_runtime_tests_rollback.sql`: `0950E5690BD6630C1462AA66452505273C5F88BA0E0E1901720989E8FD2CE67E`
+
 ## Prerequisites
 
 - Run as a Supabase/PostgreSQL administrative deployment identity able to create roles and grant role membership.

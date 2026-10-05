@@ -13,6 +13,22 @@ Current scope:
 - Review event-chain integrity
 - Concurrency serialization
 
+## Migration 022 controlled acceptance package
+
+The migration 022 lifecycle-foundation package was accepted in `S2T-FHIR-DDL-Test` on 2026-10-05:
+
+- `022_preflight_readonly.sql`: Phase A, 15/15 PASS.
+- `022_postdeploy_verification.sql`: Phase C, 11/11 PASS with fingerprints 101-109 unchanged.
+- `022_runtime_tests_rollback.sql`: Phase D, 24 PASS, 0 FAIL, and T25-T26 `NOT RUN / FIXTURE REQUIRED`.
+
+The runtime suite retained its outer transaction and final rollback. Runtime BEFORE/AFTER fingerprints matched, and no `TEST_022_*` or `T022-*` synthetic fixtures persisted.
+
+Approved SHA-256 values:
+
+- `022_preflight_readonly.sql`: `D24A085711B300091E8B321055C55D7ACE9DE903108A1040034EB9862B38726A`
+- `022_postdeploy_verification.sql`: `1A4AEE1C6ECCCF28B87FA61DF2834D2641E3B873945BE5DF7F222B76A3F64AB1`
+- `022_runtime_tests_rollback.sql`: `0950E5690BD6630C1462AA66452505273C5F88BA0E0E1901720989E8FD2CE67E`
+
 ---
 
 # Files
