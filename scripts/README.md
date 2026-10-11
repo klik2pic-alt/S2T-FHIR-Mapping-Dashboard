@@ -29,6 +29,19 @@ Approved SHA-256 values:
 - `022_postdeploy_verification.sql`: `1A4AEE1C6ECCCF28B87FA61DF2834D2641E3B873945BE5DF7F222B76A3F64AB1`
 - `022_runtime_tests_rollback.sql`: `0950E5690BD6630C1462AA66452505273C5F88BA0E0E1901720989E8FD2CE67E`
 
+## Migration 023/024 concurrency validation closure
+
+Migration 023/024 backend concurrency validation is complete with result PASS.
+C01 passed on retained replacement fixture
+`T023-CONC-PACK-20261010-R2-C01`; the original canonical R1 C01 fixture retains
+historical committed Candidate evidence from an invalid SQL Editor concurrency
+attempt. C02-C07 passed on canonical fixture `T023-CONC-PACK-20261009-R1`.
+
+The canonical verifier must not be summarized as “all PASS” because its R1 C01
+result correctly exposes that retained historical evidence. See the audit-grade
+record in `023_024_concurrency_validation_closure.md` for fingerprints, blocking
+evidence, verifier results, and the Migration 024 Candidate Review scope.
+
 ---
 
 # Files
