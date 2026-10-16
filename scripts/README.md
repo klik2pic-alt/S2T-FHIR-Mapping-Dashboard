@@ -1305,3 +1305,71 @@ Overall runtime status:
 S2T Mapping Review Governance
 RUNTIME VERIFIED
 ```
+
+---
+
+# Migration 025 — Candidate UI Read Contracts
+
+Migration 025 is the backend read-contract checkpoint for future Candidate UI
+integration. It adds:
+
+- a cohesive authenticated Candidate/ACTIVE/evidence context RPC;
+- server-computed Promotion readiness with stable blocker codes;
+- current-user review and Promotion capability booleans;
+- current-user Candidate review-session continuation discovery;
+- Candidate lifecycle provenance appended to `governance_mapping_links`.
+
+Promotion and readiness share a private non-mutating evaluator. The existing
+Promotion trigger retains its Migration 023 lock acquisition order and calls the
+shared evaluator only after locking the exact Candidate, ACTIVE, registry,
+publication, artifact, import, validation, and gate rows. Promotion continues to
+revalidate every expected identifier.
+
+`ready=true` is observational only. It is never a lock, reservation, token, or
+guarantee of future Promotion success.
+
+Migration 025 does not:
+
+- modify Migrations 023 or 024;
+- change `promote_candidate_baseline(...)`;
+- add mutation behavior;
+- implement frontend integration;
+- create a new independent validation-outcome policy.
+
+Validation order:
+
+1. `025_preflight_readonly.sql`
+2. `025_candidate_ui_read_contracts.sql`
+3. `025_postdeploy_verification.sql`
+4. `025_runtime_tests_rollback.sql`
+5. direct PostgreSQL multi-session stale/concurrency validation from
+   `025_manual_deployment_runbook.md`
+
+The preflight and postdeployment scripts are read-only. Runtime fixtures are
+enclosed in one rollback-only transaction. Concurrency evidence must use
+independent direct PostgreSQL/`psql` sessions, never Supabase SQL Editor tabs.
+
+Migration 025 backend verification completed successfully in TEST on 2026-10-16:
+
+- preflight, deployment, and all `12/12` postdeployment checks passed;
+- the rollback-only runtime suite passed `29/29`, with full rollback restoration;
+- same-series serialization passed on C05, including observed blocking and
+  successful revalidation after the holding transaction rolled back;
+- different-series independence passed between C05 and C06;
+- stale-read validation passed with exact SQLSTATE `40001` and no partial writes;
+- the six retained-evidence integrity checks passed.
+
+The stale-read run uses the dedicated retained fixture namespace
+`T025-STALE-20261016-R1`: series `02550000-0000-4000-8000-000000000001`, V1
+`02550101-0000-4000-8000-000000000001`, V2
+`02550201-0000-4000-8000-000000000001`, and V3
+`02550301-0000-4000-8000-000000000001`. Its first provisioning attempt exposed
+the backend-scoped empty placeholder left by the transaction-local
+`s2t_fhir.finalizing_baseline` custom GUC after SP02 committed. Recovery retained
+SP01/SP02 and ran SP03 and SP04 in separate fresh PostgreSQL backends, followed
+by SP05-SP11 in another fresh connection. No C01-C06 fixture was mutated.
+
+The retained final state is V1 `ACTIVE`, V2 `SUPERSEDED`, and V3 `CANDIDATE`,
+with lifecycle/candidate-context/activation-context/relationship cardinalities
+`5/3/1/1`. The fixture is retained TEST evidence and must not be cleaned up or
+replayed through B1.
