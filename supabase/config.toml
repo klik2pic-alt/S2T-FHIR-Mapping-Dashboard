@@ -1,0 +1,4 @@
+project_id = "s2t-fhir-mapping-dashboard"
+
+[functions.candidate-import]
+verify_jwt = true
