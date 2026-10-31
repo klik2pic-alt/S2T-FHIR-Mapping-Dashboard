@@ -1,8 +1,23 @@
 import { assert, equal, rejects } from "./assert.ts";
 import { bearerToken } from "../lib/auth.ts";
-import { handleRequest, parseRoute, validateBeginPayload } from "../index.ts";
+import { handleRequest, parseAllowedOrigins, parseRoute, validateBeginPayload } from "../index.ts";
 import type { CandidateImportConfig } from "../lib/contracts.ts";
 import { objectPath } from "../lib/storage.ts";
+
+const PRODUCTION_ORIGIN = "https://fhir-meds-insight.lovable.app";
+const PREVIEW_ORIGIN = "https://f87bf2db-338e-479f-b2c6-3d00f784c975.lovableproject.com";
+
+const config: CandidateImportConfig = {
+  supabaseUrl: "https://example.invalid",
+  anonKey: "anon",
+  serviceRoleKey: "service",
+  serviceActorId: "30000000-0000-4000-8000-000000000003",
+  allowedOrigins: [PRODUCTION_ORIGIN, PREVIEW_ORIGIN],
+  bucket: "s2t-candidate-imports",
+  spec: "CATO-MEDICATIONREQUEST-XLSX-v1",
+  maxCompressedBytes: 10_485_760,
+  maxExpandedBytes: 52_428_800,
+};
 
 Deno.test("missing JWT and malformed route are rejected", async () => {
   await rejects(
@@ -56,16 +71,6 @@ Deno.test("begin payload is locally bounded and preserves paired Candidate expec
 });
 
 Deno.test("unsupported methods fail before auth and no publish route is exposed", async () => {
-  const config: CandidateImportConfig = {
-    supabaseUrl: "https://example.invalid",
-    anonKey: "anon",
-    serviceRoleKey: "service",
-    serviceActorId: "30000000-0000-4000-8000-000000000003",
-    bucket: "s2t-candidate-imports",
-    spec: "CATO-MEDICATIONREQUEST-XLSX-v1",
-    maxCompressedBytes: 10_485_760,
-    maxExpandedBytes: 52_428_800,
-  };
   const response = await handleRequest(
     new Request("https://example.invalid/candidate-import/begin", { method: "GET" }),
     config,
@@ -75,6 +80,61 @@ Deno.test("unsupported methods fail before auth and no publish route is exposed"
     () => parseRoute(new URL("https://example.invalid/candidate-import/publish")),
     /Unknown/,
   );
+});
+
+Deno.test("CORS allowlist accepts exact production and Lovable Preview origins", async () => {
+  equal(
+    parseAllowedOrigins(`${PRODUCTION_ORIGIN}, ${PREVIEW_ORIGIN},${PRODUCTION_ORIGIN}`).length,
+    2,
+  );
+  for (const origin of [PRODUCTION_ORIGIN, PREVIEW_ORIGIN]) {
+    const response = await handleRequest(
+      new Request("https://example.invalid/candidate-import/begin", {
+        method: "OPTIONS",
+        headers: { origin },
+      }),
+      config,
+    );
+    equal(response.status, 204);
+    equal(response.headers.get("access-control-allow-origin"), origin);
+    equal(
+      response.headers.get("access-control-allow-headers"),
+      "authorization, apikey, content-type",
+    );
+    equal(response.headers.get("access-control-allow-methods"), "GET, POST, OPTIONS");
+    equal(response.headers.get("vary"), "Origin");
+  }
+});
+
+Deno.test("CORS allowlist rejects unknown origins and wildcard configuration", async () => {
+  const response = await handleRequest(
+    new Request("https://example.invalid/candidate-import/begin", {
+      method: "OPTIONS",
+      headers: { origin: "https://unknown.example" },
+    }),
+    config,
+  );
+  equal(response.status, 204);
+  equal(response.headers.get("access-control-allow-origin"), null);
+  await rejects(() => parseAllowedOrigins("https://*.lovableproject.com"), /exact HTTP/);
+});
+
+Deno.test("allowed-origin authenticated POST still requires a bearer JWT", async () => {
+  const response = await handleRequest(
+    new Request("https://example.invalid/candidate-import/begin", {
+      method: "POST",
+      headers: {
+        origin: PREVIEW_ORIGIN,
+        "content-type": "application/json",
+      },
+      body: "{}",
+    }),
+    config,
+  );
+  equal(response.status, 401);
+  equal(response.headers.get("access-control-allow-origin"), PREVIEW_ORIGIN);
+  const body = await response.json();
+  equal(body.error.code, "CAPABILITY_REQUIRED");
 });
 
 Deno.test("database adapter freezes exact public/service RPC names and argument names", async () => {

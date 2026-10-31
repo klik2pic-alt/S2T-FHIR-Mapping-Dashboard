@@ -199,6 +199,7 @@ export interface CandidateImportConfig {
   anonKey: string;
   serviceRoleKey: string;
   serviceActorId: string;
+  allowedOrigins: readonly string[];
   bucket: string;
   spec: string;
   maxCompressedBytes: number;

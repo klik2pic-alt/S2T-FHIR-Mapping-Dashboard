@@ -43,6 +43,27 @@ function required(name: string): string {
   return value;
 }
 
+export function parseAllowedOrigins(value: string): string[] {
+  const origins = [...new Set(value.split(",").map((origin) => origin.trim()).filter(Boolean))];
+  if (origins.length === 0) throw new Error("CANDIDATE_IMPORT_ALLOWED_ORIGINS is empty");
+  for (const origin of origins) {
+    let parsed: URL;
+    try {
+      parsed = new URL(origin);
+    } catch {
+      throw new Error("CANDIDATE_IMPORT_ALLOWED_ORIGINS contains an invalid origin");
+    }
+    if (
+      origin.includes("*") ||
+      !["http:", "https:"].includes(parsed.protocol) ||
+      parsed.origin !== origin
+    ) {
+      throw new Error("CANDIDATE_IMPORT_ALLOWED_ORIGINS must contain exact HTTP(S) origins");
+    }
+  }
+  return origins;
+}
+
 export function loadConfig(): CandidateImportConfig {
   const number = (name: string, fallback: number) => {
     const value = Deno.env.get(name);
@@ -72,6 +93,7 @@ export function loadConfig(): CandidateImportConfig {
     anonKey: required("SUPABASE_ANON_KEY"),
     serviceRoleKey: required("SUPABASE_SERVICE_ROLE_KEY"),
     serviceActorId,
+    allowedOrigins: parseAllowedOrigins(required("CANDIDATE_IMPORT_ALLOWED_ORIGINS")),
     bucket,
     spec,
     maxCompressedBytes,
@@ -360,13 +382,15 @@ async function handleValidate(
   }
 }
 
-function corsHeaders(request: Request): HeadersInit {
-  const allowed = Deno.env.get("CANDIDATE_IMPORT_ALLOWED_ORIGIN");
+export function corsHeaders(
+  request: Request,
+  allowedOrigins: readonly string[],
+): HeadersInit {
   const origin = request.headers.get("origin");
-  return allowed && origin === allowed
+  return origin && allowedOrigins.includes(origin)
     ? {
-      "access-control-allow-origin": allowed,
-      "access-control-allow-headers": "authorization, content-type",
+      "access-control-allow-origin": origin,
+      "access-control-allow-headers": "authorization, apikey, content-type",
       "access-control-allow-methods": "GET, POST, OPTIONS",
       vary: "Origin",
     }
@@ -379,7 +403,10 @@ export async function handleRequest(request: Request, config = loadConfig()): Pr
   let action = "unknown";
   try {
     if (request.method === "OPTIONS") {
-      return new Response(null, { status: 204, headers: corsHeaders(request) });
+      return new Response(null, {
+        status: 204,
+        headers: corsHeaders(request, config.allowedOrigins),
+      });
     }
     const matched = parseRoute(new URL(request.url));
     requestId = matched.requestId;
@@ -413,7 +440,7 @@ export async function handleRequest(request: Request, config = loadConfig()): Pr
         durationMs: Math.round(performance.now() - started),
       }),
     );
-    return Response.json(body, { headers: corsHeaders(request) });
+    return Response.json(body, { headers: corsHeaders(request, config.allowedOrigins) });
   } catch (error) {
     const safe = error instanceof ImportError
       ? error
@@ -429,7 +456,7 @@ export async function handleRequest(request: Request, config = loadConfig()): Pr
       }),
     );
     const response = errorResponse(safe);
-    for (const [key, value] of Object.entries(corsHeaders(request))) {
+    for (const [key, value] of Object.entries(corsHeaders(request, config.allowedOrigins))) {
       response.headers.set(key, value);
     }
     return response;

@@ -21,7 +21,7 @@ SUPABASE_URL
 SUPABASE_ANON_KEY
 SUPABASE_SERVICE_ROLE_KEY
 CANDIDATE_IMPORT_SERVICE_ACTOR_ID
-CANDIDATE_IMPORT_ALLOWED_ORIGIN
+CANDIDATE_IMPORT_ALLOWED_ORIGINS=https://fhir-meds-insight.lovable.app
 CANDIDATE_IMPORT_BUCKET=s2t-candidate-imports
 CANDIDATE_IMPORT_SPEC=CATO-MEDICATIONREQUEST-XLSX-v1
 CANDIDATE_IMPORT_MAX_COMPRESSED_BYTES=10485760
@@ -31,6 +31,19 @@ CANDIDATE_IMPORT_MAX_EXPANDED_BYTES=52428800
 `CANDIDATE_IMPORT_SERVICE_ACTOR_ID` must be the exact active governed principal authorized to act as
 the import service. Resolve and approve it separately; do not accept a principal ID from a browser
 request.
+
+`CANDIDATE_IMPORT_ALLOWED_ORIGINS` is a comma-separated allowlist of exact HTTP(S) origins. Do not
+use wildcards, paths, query strings, fragments, or trailing slashes. Each allowed browser origin is
+echoed only when it exactly matches the request `Origin`; unknown origins receive no CORS headers.
+The function fails closed when the variable is absent, empty, or invalid. Production configuration
+must contain only approved production/application origins. For the F4C.5 TEST smoke, use:
+
+```text
+CANDIDATE_IMPORT_ALLOWED_ORIGINS=https://fhir-meds-insight.lovable.app,https://f87bf2db-338e-479f-b2c6-3d00f784c975.lovableproject.com
+```
+
+The `lovableproject.com` Preview origin is TEST/development configuration and is not a production
+requirement.
 
 ## Approved deployment and smoke-test sequence
 
