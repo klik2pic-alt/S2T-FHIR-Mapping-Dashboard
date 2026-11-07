@@ -1,10 +1,13 @@
 import { MAX_BATCH_BYTES, MAX_BATCH_ROWS, type StagedRow } from "./contracts.ts";
-import { canonicalJson, sha256Hex, utf8Size } from "./normalization.ts";
+import { canonicalJson, sha256Hex } from "./normalization.ts";
 import { ImportError } from "./errors.ts";
 
 // PostgreSQL stores jsonb in a binary representation. Keep a bounded reserve
 // below its 2 MiB pg_column_size guard instead of assuming UTF-8 JSON size is identical.
 export const JSONB_SIZE_RESERVE = 65_536;
+export const MAX_STAGING_PAYLOAD_BYTES = MAX_BATCH_BYTES - JSONB_SIZE_RESERVE;
+
+const encoder = new TextEncoder();
 
 export interface StagingBatch {
   batchNumber: number;
@@ -15,36 +18,51 @@ export interface StagingBatch {
 }
 
 export async function createBatches(rows: StagedRow[]): Promise<StagingBatch[]> {
-  const batches: StagedRow[][] = [];
-  let current: StagedRow[] = [];
+  const batches: Omit<StagingBatch, "digest">[] = [];
+  let currentRows: StagedRow[] = [];
+  let currentCanonicalRows: string[] = [];
+  let currentEncodedBytes = 2; // Opening and closing JSON array brackets.
+
+  const finishCurrentBatch = () => {
+    if (currentRows.length === 0) return;
+    const canonicalPayload = `[${currentCanonicalRows.join(",")}]`;
+    batches.push({
+      batchNumber: batches.length,
+      rows: currentRows,
+      canonicalPayload,
+      encodedBytes: currentEncodedBytes,
+    });
+    currentRows = [];
+    currentCanonicalRows = [];
+    currentEncodedBytes = 2;
+  };
+
   for (const row of rows) {
-    if (utf8Size([row]) > MAX_BATCH_BYTES - JSONB_SIZE_RESERVE) {
+    const canonicalRow = canonicalJson(row);
+    const rowEncodedBytes = encoder.encode(canonicalRow).byteLength;
+    if (rowEncodedBytes + 2 > MAX_STAGING_PAYLOAD_BYTES) {
       throw new ImportError(
         "FILE_TOO_LARGE",
         "One normalized governed row exceeds the staging limit.",
       );
     }
-    const proposed = [...current, row];
+    const proposedEncodedBytes = currentEncodedBytes +
+      (currentRows.length === 0 ? 0 : 1) + rowEncodedBytes;
     if (
-      current.length > 0 &&
-      (proposed.length > MAX_BATCH_ROWS ||
-        utf8Size(proposed) > MAX_BATCH_BYTES - JSONB_SIZE_RESERVE)
+      currentRows.length > 0 &&
+      (currentRows.length + 1 > MAX_BATCH_ROWS ||
+        proposedEncodedBytes > MAX_STAGING_PAYLOAD_BYTES)
     ) {
-      batches.push(current);
-      current = [row];
-    } else {
-      current = proposed;
+      finishCurrentBatch();
     }
+    currentRows.push(row);
+    currentCanonicalRows.push(canonicalRow);
+    currentEncodedBytes += (currentRows.length === 1 ? 0 : 1) + rowEncodedBytes;
   }
-  if (current.length) batches.push(current);
-  return Promise.all(batches.map(async (batchRows, batchNumber) => {
-    const canonicalPayload = canonicalJson(batchRows);
-    return {
-      batchNumber,
-      rows: batchRows,
-      canonicalPayload,
-      encodedBytes: new TextEncoder().encode(canonicalPayload).byteLength,
-      digest: await sha256Hex(canonicalPayload),
-    };
-  }));
+  finishCurrentBatch();
+
+  return Promise.all(batches.map(async (batch) => ({
+    ...batch,
+    digest: await sha256Hex(batch.canonicalPayload),
+  })));
 }

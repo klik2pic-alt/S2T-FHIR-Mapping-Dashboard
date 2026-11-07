@@ -23,6 +23,7 @@ import {
   type ValidationResult,
 } from "./contracts.ts";
 import { ImportError } from "./errors.ts";
+import type { ValidationPhase, ValidationPhaseFields } from "./observability.ts";
 import {
   canonicalJson,
   columnName,
@@ -319,7 +320,18 @@ function manifestFor(
 
 export async function parseAndValidateWorkbook(
   bytes: Uint8Array,
-  context: { requestId: string; validationAttemptId: string; versionLabel: string },
+  context: {
+    requestId: string;
+    validationAttemptId: string;
+    versionLabel: string;
+    onPhase?: (
+      phase: Extract<
+        ValidationPhase,
+        "exceljs-parse-complete" | "normalization-complete" | "row-validation-complete"
+      >,
+      fields: ValidationPhaseFields,
+    ) => void;
+  },
 ): Promise<ValidationResult> {
   const workbook = new ExcelJS.Workbook();
   workbook.calcProperties.fullCalcOnLoad = false;
@@ -334,6 +346,9 @@ export async function parseAndValidateWorkbook(
       context.requestId,
     );
   }
+  context.onPhase?.("exceljs-parse-complete", {
+    worksheetCount: workbook.worksheets.length,
+  });
   const rows: StagedRow[] = [];
   const headerEvidence = new Map<string, { raw: RawCell[]; normalized: string[] }>();
   for (const [sheetName, contract] of Object.entries(SHEET_CONTRACTS)) {
@@ -375,6 +390,7 @@ export async function parseAndValidateWorkbook(
       }
     }
   }
+  context.onPhase?.("normalization-complete", { governedRowCount: rows.length });
   const findings = await validateRows(rows);
   const summary = {
     candidateCount: rows.length,
@@ -390,6 +406,13 @@ export async function parseAndValidateWorkbook(
     findings.push(await zeroAcceptedFinding());
     summary.errorCount++;
   }
+  context.onPhase?.("row-validation-complete", {
+    governedRowCount: summary.candidateCount,
+    acceptedCount: summary.acceptedCount,
+    warningCount: summary.warningCount,
+    errorCount: summary.errorCount,
+    quarantinedCount: summary.quarantinedCount,
+  });
   return {
     schema: STAGING_SCHEMA,
     requestId: context.requestId,

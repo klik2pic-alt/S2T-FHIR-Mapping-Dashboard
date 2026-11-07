@@ -21,6 +21,7 @@ import {
 } from "./lib/database.ts";
 import { errorResponse, ImportError } from "./lib/errors.ts";
 import { digestCanonical, normalizeText, sha256Hex } from "./lib/normalization.ts";
+import { createValidationPhaseLogger } from "./lib/observability.ts";
 import { preflightOoxml } from "./lib/ooxml-preflight.ts";
 import { configurationDigest, parseAndValidateWorkbook } from "./lib/parser.ts";
 import { createUploadTarget, downloadObject } from "./lib/storage.ts";
@@ -289,6 +290,14 @@ async function handleValidate(
   config: CandidateImportConfig,
   requestId: string,
 ) {
+  const validationAttemptId = crypto.randomUUID();
+  const correlationId = crypto.randomUUID();
+  const logPhase = createValidationPhaseLogger({
+    requestId,
+    validationAttemptId,
+    correlationId,
+  });
+  logPhase("validation-request-received");
   const status = await getMyImport(caller, requestId);
   if (status.state !== "UPLOADED" && status.state !== "VALIDATING") {
     throw new ImportError(
@@ -299,8 +308,6 @@ async function handleValidate(
       requestId,
     );
   }
-  const validationAttemptId = crypto.randomUUID();
-  const correlationId = crypto.randomUUID();
   let validationStarted = false;
   try {
     const configDigest = await configurationDigest();
@@ -315,15 +322,39 @@ async function handleValidate(
       correlationId,
     );
     validationStarted = true;
+    logPhase("lease-acquired");
     const bytes = await downloadObject(service, config, requestId);
-    preflightOoxml(bytes, config.maxCompressedBytes, config.maxExpandedBytes);
+    logPhase("storage-download-complete", { compressedBytes: bytes.byteLength });
+    const preflight = preflightOoxml(
+      bytes,
+      config.maxCompressedBytes,
+      config.maxExpandedBytes,
+    );
+    logPhase("ooxml-preflight-complete", {
+      compressedBytes: preflight.compressedBytes,
+      expandedBytes: preflight.expandedBytes,
+      zipEntryCount: preflight.entries.length,
+      worksheetCount: preflight.sheetCount,
+    });
     const result = await parseAndValidateWorkbook(bytes, {
       requestId,
       validationAttemptId,
       versionLabel: String(status.versionLabel ?? ""),
+      onPhase: logPhase,
     });
     const batches = await createBatches(result.rows);
+    logPhase("batching-complete", {
+      governedRowCount: result.rows.length,
+      batchCount: batches.length,
+    });
     for (const batch of batches) {
+      const batchFields = {
+        batchNumber: batch.batchNumber,
+        batchCount: batches.length,
+        batchRowCount: batch.rows.length,
+        encodedBatchBytes: batch.encodedBytes,
+      };
+      logPhase("batch-stage-start", batchFields);
       await stageBatch(
         service,
         config,
@@ -334,6 +365,7 @@ async function handleValidate(
         batch.rows,
         correlationId,
       );
+      logPhase("batch-stage-complete", batchFields);
     }
     const executionFingerprint = await digestCanonical({
       schema: "candidate-import-execution-v1",
@@ -341,6 +373,9 @@ async function handleValidate(
       configurationDigest: result.configurationDigest,
       sourceRowHashes: result.rows.map((row) => row.sourceRowHash),
       findingFingerprints: result.findings.map((finding) => finding.fingerprint),
+    });
+    logPhase("execution-fingerprint-complete", {
+      governedRowCount: result.rows.length,
     });
     const completion = await completeValidation(
       service,
@@ -353,6 +388,13 @@ async function handleValidate(
       executionFingerprint,
       correlationId,
     );
+    logPhase("validation-completion-complete", {
+      governedRowCount: result.summary.candidateCount,
+      acceptedCount: result.summary.acceptedCount,
+      warningCount: result.summary.warningCount,
+      errorCount: result.summary.errorCount,
+      quarantinedCount: result.summary.quarantinedCount,
+    });
     const finalStatus = await getMyImport(caller, requestId);
     if (completion.state === "VALIDATION_FAILED") {
       validationStarted = false;
