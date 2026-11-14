@@ -92,7 +92,7 @@ tokens, service credentials, or the signed upload URL.
 - Logs contain request/correlation IDs, counts, duration, and safe codes only; no token, signed URL,
   service key, or workbook cell value appears.
 
-## Canonical workbook expectation
+## Historical canonical workbook expectation
 
 The retained canonical workbook is expected to parse as 293 candidates, 292 accepted, five warnings,
 one error, and one quarantined row. It therefore does not satisfy CLEAN_IMPORT and must not become
@@ -100,3 +100,73 @@ READY_TO_PUBLISH without a new, governed clean workbook.
 
 There is intentionally no cleanup procedure: uploaded artifacts and governed validation evidence
 follow the repository's append-only retention rules.
+
+## Replay-safe validation recovery
+
+The normal validation path is:
+
+```text
+begin -> signed upload -> complete-upload -> validate -> READY_TO_PUBLISH
+```
+
+If a validation worker exits while the request is `VALIDATING`, do not create a replacement request
+or blindly retry while its lease is active. A competing validation attempt is rejected while the
+active lease remains valid. After the lease expires, Migration 029 supports this governed recovery
+path:
+
+```text
+VALIDATING
+  -> lease expiry
+  -> VALIDATION_RECLAIMED
+  -> exact artifact-manifest reuse
+  -> exact staging replay/materialization reuse
+  -> validation completion
+  -> READY_TO_PUBLISH
+```
+
+Recovery remains fail-closed. The uploaded artifact manifest must match exactly; staging batches are
+replayed only when their batch number, digest, row count, size, and materialized evidence match. A
+replay batch points directly to its immutable root through `reused_from_staging_batch_id`; replay
+chains and duplicate materialization are prohibited. Terminal completion replay is also rejected.
+The stable conflict codes are:
+
+- `ARTIFACT_MANIFEST_MISMATCH`
+- `BATCH_DIGEST_MISMATCH`
+- `STAGING_REPLAY_MISMATCH`
+- `IMPORTED_ROW_REPLAY_MISMATCH`
+- `COMPLETION_ALREADY_APPLIED`
+
+These conflicts require investigation. They are not permission to replace retained evidence,
+disable append-only protections, or create another Candidate merely because a worker failed.
+
+## F4C.7 retained recovery evidence
+
+Request `ef7d9ed5-08fa-46d8-90b8-44904e4ab2cd` was recovered in place after the initial validation
+worker returned `WORKER_RESOURCE_LIMIT`. Instrumentation localized the failure, and the Edge
+batching optimization staged the 293 rows at the canonical 250 + 43 boundary. A manifest collision
+exposed the need for replay-safe completion; Migration 029 then supplied exact immutable manifest reuse,
+root-provenance staging replay, and fail-closed completion. The original request was reclaimed after
+lease expiry and completed without a replacement Candidate.
+
+The recovered clean fixture is distinct from the historical canonical workbook above:
+
+```text
+request_id=ef7d9ed5-08fa-46d8-90b8-44904e4ab2cd
+artifact_sha256=766d1b1e31d00eb6931d70db1ed84ae87c58b554a3e02dabc319497c42696e05
+request_state=READY_TO_PUBLISH
+candidate_rows=293
+accepted_rows=293
+warning_rows=0
+error_rows=0
+quarantined_rows=0
+element_mappings=238
+extension_mappings=9
+reference_mappings=46
+```
+
+Migration 029 verification passed in TEST: preflight 11/11, postdeploy 16/16, and rollback runtime
+18/18 with the committed Candidate-import fingerprint restored after rollback.
+
+`READY_TO_PUBLISH` is validation output, not publication. It does not mean `PUBLISHED`, does not
+create a Candidate lifecycle publication event, and does not authorize automatic publication.
+Publishing remains a separate governed action and was deliberately not performed during F4C.7.
