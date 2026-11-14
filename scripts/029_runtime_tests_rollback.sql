@@ -297,18 +297,21 @@ begin
       sqlerrm like 'IMPORTED_ROW_REPLAY_MISMATCH:%','fixed imported-row code');
   end;
 
+  v_changed:=pg_catalog.jsonb_set(
+    v_rows,'{0,subtype,interfaceType}','"CSV"'::jsonb);
   begin
-    update s2t_fhir.element_mapping e set notes='x'
-    from s2t_fhir.mapping_record m
-    where e.mapping_record_id=m.mapping_record_id
-      and m.baseline_version_id=f.baseline_version_id;
+    if pg_catalog.pg_column_size(v_changed) <> pg_catalog.pg_column_size(v_rows) then
+      raise exception '029 runtime setup: equal-size subtype mismatch payload drifted'
+        using errcode='P0001';
+    end if;
     perform s2t_fhir_api._service_stage_candidate_import_batch(
       f.request_id,f.attempt_one,0,pg_catalog.decode(pg_catalog.repeat('11',32),'hex'),
-      v_rows,f.service_actor_id,pg_catalog.gen_random_uuid());
+      v_changed,f.service_actor_id,pg_catalog.gen_random_uuid());
     perform pg_temp.test_029_record(12,'mapping subtype mismatch fails closed',false,'unexpected success');
   exception when sqlstate '23514' then
     perform pg_temp.test_029_record(12,'mapping subtype mismatch fails closed',
-      sqlerrm like 'IMPORTED_ROW_REPLAY_MISMATCH:%','subtransaction restored subtype');
+      sqlerrm like 'IMPORTED_ROW_REPLAY_MISMATCH:%',
+      'equal-size replay payload changed interfaceType XML to CSV; persisted subtype untouched');
   end;
 
   begin
