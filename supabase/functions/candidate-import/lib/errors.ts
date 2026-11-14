@@ -8,6 +8,11 @@ export type PublicErrorCode =
   | "CANDIDATE_CHANGED"
   | "CAPABILITY_REQUIRED"
   | "IMPORT_CONFLICT"
+  | "ARTIFACT_MANIFEST_MISMATCH"
+  | "BATCH_DIGEST_MISMATCH"
+  | "STAGING_REPLAY_MISMATCH"
+  | "IMPORTED_ROW_REPLAY_MISMATCH"
+  | "COMPLETION_ALREADY_APPLIED"
   | "VERSION_LABEL_CONFLICT"
   | "INTERNAL_IMPORT_ERROR";
 
@@ -21,6 +26,11 @@ const STATUS: Record<PublicErrorCode, number> = {
   CANDIDATE_CHANGED: 409,
   CAPABILITY_REQUIRED: 403,
   IMPORT_CONFLICT: 409,
+  ARTIFACT_MANIFEST_MISMATCH: 409,
+  BATCH_DIGEST_MISMATCH: 409,
+  STAGING_REPLAY_MISMATCH: 409,
+  IMPORTED_ROW_REPLAY_MISMATCH: 409,
+  COMPLETION_ALREADY_APPLIED: 409,
   VERSION_LABEL_CONFLICT: 409,
   INTERNAL_IMPORT_ERROR: 500,
 };
@@ -35,6 +45,11 @@ const MESSAGES: Record<PublicErrorCode, string> = {
   CANDIDATE_CHANGED: "The Candidate changed; refresh before retrying.",
   CAPABILITY_REQUIRED: "The governed account is not authorized for this operation.",
   IMPORT_CONFLICT: "The import request conflicts with its current state.",
+  ARTIFACT_MANIFEST_MISMATCH: "The uploaded artifact conflicts with its governed manifest.",
+  BATCH_DIGEST_MISMATCH: "The validation batch differs from previously staged evidence.",
+  STAGING_REPLAY_MISMATCH: "The staged validation evidence cannot be safely reused.",
+  IMPORTED_ROW_REPLAY_MISMATCH: "The imported row evidence cannot be safely reused.",
+  COMPLETION_ALREADY_APPLIED: "Validation completion has already been applied.",
   VERSION_LABEL_CONFLICT: "The mapping version label is already reserved.",
   INTERNAL_IMPORT_ERROR: "The import could not be completed.",
 };

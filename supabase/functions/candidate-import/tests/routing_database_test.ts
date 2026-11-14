@@ -3,6 +3,7 @@ import { bearerToken } from "../lib/auth.ts";
 import { handleRequest, parseAllowedOrigins, parseRoute, validateBeginPayload } from "../index.ts";
 import type { CandidateImportConfig } from "../lib/contracts.ts";
 import { objectPath } from "../lib/storage.ts";
+import { mapDatabaseError } from "../lib/errors.ts";
 
 const PRODUCTION_ORIGIN = "https://fhir-meds-insight.lovable.app";
 const PREVIEW_ORIGIN = "https://f87bf2db-338e-479f-b2c6-3d00f784c975.lovableproject.com";
@@ -164,4 +165,27 @@ Deno.test("database adapter freezes exact public/service RPC names and argument 
       "p_sheet_manifest",
     ]
   ) assert(source.includes(argument));
+});
+
+Deno.test("replay-integrity database codes map to fixed non-retryable conflicts", () => {
+  const requestId = "30000000-0000-4000-8000-000000000001";
+  for (
+    const code of [
+      "ARTIFACT_MANIFEST_MISMATCH",
+      "BATCH_DIGEST_MISMATCH",
+      "STAGING_REPLAY_MISMATCH",
+      "IMPORTED_ROW_REPLAY_MISMATCH",
+      "COMPLETION_ALREADY_APPLIED",
+    ] as const
+  ) {
+    const mapped = mapDatabaseError(
+      { code: "23514", message: `${code}: fixed safe database detail` },
+      requestId,
+    );
+    equal(mapped.code, code);
+    equal(mapped.status, 409);
+    equal(mapped.retryable, false);
+    equal(mapped.requestId, requestId);
+    assert(!mapped.message.includes("database detail"));
+  }
 });
